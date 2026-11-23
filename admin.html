@@ -155,6 +155,12 @@ async function confirmOrder(id){
  const {error}=await db.rpc('confirm_web_sale',{p_sale_id:id,p_payment_method:document.getElementById('pay-'+id).value});if(error)return notify(error.message);
  await Promise.all([loadOrders(),loadProducts(),loadSummary(),loadRecipeTools()]);notify('Pedido confirmado y existencias descontadas.');
 }
+async function saveSalePayment(id){
+ const method=document.getElementById('sale-payment-'+id).value;
+ const {error}=await db.rpc('update_sale_payment_method',{p_sale_id:id,p_payment_method:method});
+ if(error)return notify(error.message);
+ await loadSummary();notify('Medio de pago actualizado.');
+}
 async function switchTab(name){
  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));document.querySelectorAll('[id^="tab-"]').forEach(s=>s.classList.toggle('hidden',s.id!=='tab-'+name));
  if(name==='inventario')loadProducts();if(name==='recetas')await loadRecipeTools();if(name==='pedidos')loadOrders();if(name==='resumen')loadSummary();if(name==='egresos')loadExpenses();if(name==='ingresos')loadIncomes();
@@ -193,6 +199,6 @@ async function loadSummary(){
  renderSalesCharts(sales||[],items||[],from,to);
  document.getElementById('mix').innerHTML=Object.entries(grouped).sort((a,b)=>b[1].v-a[1].v).map(([n,x])=>'<tr><td>'+esc(n)+'</td><td>'+x.q+'</td><td>'+money(x.v)+'</td><td>'+(productSales?Math.round(x.v/productSales*100)+'%':'0%')+'</td></tr>').join('')||'<tr><td colspan="4">Sin ventas confirmadas en este periodo.</td></tr>';
  const saleDetails={};(items||[]).forEach(i=>{(saleDetails[i.sale_id]??=[]).push(i)});
- document.getElementById('salesRows').innerHTML=(sales||[]).sort((a,b)=>a.confirmed_at.localeCompare(b.confirmed_at)).reverse().map(s=>{const detail=(saleDetails[s.id]||[]).map(i=>esc(i.quantity)+' × '+esc(i.product_name)+' <small>('+money(i.line_total_cop)+')</small>').join('<br>')||'—',service=s.delivery_type&&s.delivery_type.startsWith('Mesa ')?'Consumo en el local · '+s.delivery_type:s.delivery_type,delivery=[service,s.delivery_address].filter(Boolean).map(esc).join('<br>');return '<tr><td>'+new Date(s.confirmed_at).toLocaleString('es-CO')+'</td><td>'+(s.source==='local'?'Local':'WhatsApp')+'</td><td>'+esc(s.customer_name||'Venta directa')+(delivery?'<br><small>'+delivery+'</small>':'')+'</td><td>'+detail+'</td><td>'+esc(s.notes||'—')+'</td><td>'+esc(s.payment_method||'—')+'</td><td>'+money(s.total_cop)+'</td></tr>'}).join('')||'<tr><td colspan="7">Sin ventas confirmadas en este periodo.</td></tr>';
+ document.getElementById('salesRows').innerHTML=(sales||[]).sort((a,b)=>a.confirmed_at.localeCompare(b.confirmed_at)).reverse().map(s=>{const detail=(saleDetails[s.id]||[]).map(i=>esc(i.quantity)+' × '+esc(i.product_name)+' <small>('+money(i.line_total_cop)+')</small>').join('<br>')||'—',service=s.delivery_type&&s.delivery_type.startsWith('Mesa ')?'Consumo en el local · '+s.delivery_type:s.delivery_type,delivery=[service,s.delivery_address].filter(Boolean).map(esc).join('<br>'),current=s.payment_method||'efectivo',options=[['efectivo','Efectivo'],['transferencia','Transferencia'],...(current==='tarjeta'?[['tarjeta','Tarjeta']]:[]),...(current==='otro'?[['otro','Otro']]:[])].map(([v,label])=>'<option value="'+v+'"'+(current===v?' selected':'')+'>'+label+'</option>').join('');return '<tr><td>'+new Date(s.confirmed_at).toLocaleString('es-CO')+'</td><td>'+(s.source==='local'?'Local':'WhatsApp')+'</td><td>'+esc(s.customer_name||'Venta directa')+(delivery?'<br><small>'+delivery+'</small>':'')+'</td><td>'+detail+'</td><td>'+esc(s.notes||'—')+'</td><td><select id="sale-payment-'+s.id+'" class="field" aria-label="Medio de pago">'+options+'</select><button type="button" class="button secondary" onclick="saveSalePayment(\''+s.id+'\')">Guardar</button></td><td>'+money(s.total_cop)+'</td></tr>'}).join('')||'<tr><td colspan="7">Sin ventas confirmadas en este periodo.</td></tr>';
 }function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}init();
 </script></body></html>
