@@ -51,7 +51,7 @@
   <h3>Movimientos recientes de ingredientes</h3>
   <div class="scroll"><table><thead><tr><th>Fecha</th><th>Ingrediente</th><th>Movimiento</th><th>Cantidad</th><th>Costo / nota</th></tr></thead><tbody id="ingredientMovementRows"></tbody></table></div>
 </section><section id="tab-ingresos" class="card hidden"><h2>Registrar otro ingreso</h2><p class="muted">Usa esta sección para ingresos adicionales. Las ventas del menú ya se suman automáticamente; no las registres de nuevo aquí. Para corregir un reembolso que quedó como ingreso, usa Pasar a devolución.</p><div class="grid"><label>Descripción<input id="incomeDescription" class="field" placeholder="Ej. ingreso extraordinario"></label><label>Categoría<select id="incomeCategory" class="field"><option>Otro ingreso</option><option>Ingreso adicional</option></select></label><label>Valor en pesos<input id="incomeAmount" class="field" type="number" min="1"></label><label>Forma de pago<select id="incomePayment" class="field"><option>efectivo</option><option>transferencia</option><option>tarjeta</option><option>otro</option></select></label></div><label>Nota (opcional)<input id="incomeNotes" class="field"></label><button class="button green" onclick="saveIncome()">Guardar ingreso</button><h3>Ingresos adicionales recientes</h3><div class="scroll"><table><thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Forma de pago</th><th>Valor</th><th>Acciones</th></tr></thead><tbody id="incomeRows"></tbody></table></div></section>
-    <section id="tab-egresos" class="card hidden"><h2>Registrar egreso</h2><div class="grid"><label>Descripción<input id="expenseDescription" class="field" placeholder="Ej. compra de insumos"></label><label>Categoría<select id="expenseCategory" class="field"><option>Compra de inventario</option><option>Servicios</option><option>Arriendo</option><option>Nómina</option><option>Domicilios</option><option>Mantenimiento</option><option>Devoluciones</option><option>Otro</option></select></label><label>Valor en pesos<input id="expenseAmount" class="field" type="number" min="1"></label><label>Forma de pago<select id="expensePayment" class="field"><option>efectivo</option><option>transferencia</option><option>tarjeta</option><option>otro</option></select></label></div><label>Nota (opcional)<input id="expenseNotes" class="field"></label><button class="button" onclick="saveExpense()">Guardar egreso</button><h3>Egresos recientes</h3><div class="scroll"><table><thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Valor</th></tr></thead><tbody id="expenseRows"></tbody></table></div></section>
+    <section id="tab-egresos" class="card hidden"><h2>Registrar egreso</h2><div class="grid"><label>Descripción<input id="expenseDescription" class="field" placeholder="Ej. compra de insumos"></label><label>Categoría<select id="expenseCategory" class="field"><option>Compra de inventario</option><option>Servicios</option><option>Arriendo</option><option>Nómina</option><option>Domicilios</option><option>Mantenimiento</option><option>Devoluciones</option><option>Otro</option></select></label><label>Valor en pesos<input id="expenseAmount" class="field" type="number" min="1"></label><label>Forma de pago<select id="expensePayment" class="field"><option>efectivo</option><option>transferencia</option><option>tarjeta</option><option>otro</option></select></label></div><label>Nota (opcional)<input id="expenseNotes" class="field"></label><button class="button" onclick="saveExpense()">Guardar egreso</button><h3>Egresos recientes</h3><div class="scroll"><table><thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Forma de pago</th><th>Valor</th><th>Acciones</th></tr></thead><tbody id="expenseRows"></tbody></table></div></section>
   </section>
 </main>
 <dialog id="refundDialog" class="income-dialog">
@@ -67,6 +67,24 @@
       <button id="refundSubmit" class="button danger" type="submit">Confirmar devolución</button>
     </div>
   </form>
+</dialog>
+<dialog id="expenseEditDialog" class="income-dialog">
+ <form onsubmit="saveExpenseEdit(event)">
+  <h2>Modificar egreso</h2>
+  <div class="grid">
+   <label>Fecha<input name="date" type="date" class="field" required></label>
+   <label>Categoría<select name="category" class="field" required></select></label>
+   <label>Descripción<input name="description" class="field" required></label>
+   <label>Valor en pesos<input name="amount" type="number" min="1" step="1" class="field" required></label>
+   <label>Forma de pago<select name="payment" class="field" required></select></label>
+  </div>
+  <label>Nota<input name="notes" class="field"></label>
+  <p role="alert"></p>
+  <div class="dialog-actions">
+   <button type="button" class="button secondary" onclick="this.closest('dialog').close()">Volver</button>
+   <button type="submit" class="button green">Guardar cambio</button>
+  </div>
+ </form>
 </dialog>
 <dialog id="incomeEditDialog" class="income-dialog"><form onsubmit="saveIncomeEdit(event)"><h2>Modificar ingreso</h2><input id="incomeEditId" type="hidden"><div class="grid"><label>Fecha<input id="incomeEditDate" type="date" class="field" required></label><label>Categoría<select id="incomeEditCategory" class="field"><option>Otro ingreso</option><option>Reembolso</option><option>Ingreso adicional</option></select></label><label>Descripción<input id="incomeEditDescription" class="field" required></label><label>Valor en pesos<input id="incomeEditAmount" class="field" type="number" min="1" step="1" required></label><label>Forma de pago<select id="incomeEditPayment" class="field"><option>efectivo</option><option>transferencia</option><option>tarjeta</option><option>otro</option></select></label></div><label>Nota<input id="incomeEditNotes" class="field"></label><p class="muted">Los días con cierre guardado no se pueden modificar para conservar el cuadre.</p><div class="dialog-actions"><button class="button secondary" type="button" onclick="document.getElementById('incomeEditDialog').close()">Cancelar</button><button class="button green" type="submit">Guardar cambios</button></div></form></dialog>
 <div id="toast"></div>
@@ -89,7 +107,68 @@ async function confirmOrder(id){const {error}=await db.rpc('confirm_web_sale',{p
 async function cancelOrder(id){if(!confirm('¿Cancelar este pedido pendiente?'))return;const {error}=await db.rpc('cancel_pending_sale',{p_sale_id:id});if(error)return notify(error.message);await loadOrders();notify('Pedido cancelado.')}
 async function saveExpense(){const amount=Number(document.getElementById('expenseAmount').value),description=document.getElementById('expenseDescription').value.trim();if(!description||amount<=0)return notify('Escribe una descripción y un valor válido.');const {error}=await db.from('expenses').insert({description,category:document.getElementById('expenseCategory').value,expense_date:bogotaDate(),amount_cop:Math.round(amount),payment_method:document.getElementById('expensePayment').value,notes:document.getElementById('expenseNotes').value||null});if(error)return notify(error.message);['expenseDescription','expenseAmount','expenseNotes'].forEach(id=>document.getElementById(id).value='');await Promise.all([loadExpenses(),loadSummary(),loadCashClose()]);notify('Egreso guardado.')}
 async function saveIncome(){const amount=Number(document.getElementById('incomeAmount').value),description=document.getElementById('incomeDescription').value.trim();if(!description||amount<=0)return notify('Escribe una descripción y un valor válido.');const {error}=await db.from('other_income').insert({description,category:document.getElementById('incomeCategory').value,income_date:bogotaDate(),amount_cop:Math.round(amount),payment_method:document.getElementById('incomePayment').value,notes:document.getElementById('incomeNotes').value||null});if(error)return notify(error.message);['incomeDescription','incomeAmount','incomeNotes'].forEach(id=>document.getElementById(id).value='');await Promise.all([loadIncomes(),loadSummary()]);notify('Ingreso guardado.')}
-async function loadExpenses(){const {data,error}=await db.from('expenses').select('*').order('expense_date',{ascending:false}).limit(40);if(error)return;document.getElementById('expenseRows').innerHTML=(data||[]).map(e=>`<tr><td>${e.expense_date}</td><td>${esc(e.description)}</td><td>${esc(e.category)}</td><td>${money(e.amount_cop)}</td></tr>`).join('')||'<tr><td colspan="4">Aún no hay egresos.</td></tr>'}
+function expenseIsLinked(expense){
+ return expense.refunded_sale_id || expense.category==='Compra de inventario';
+}
+async function editExpense(id){
+ const {data,error}=await db.from('expenses').select('*').eq('id',id).maybeSingle();
+ if(error||!data)return notify('No se pudo cargar el egreso.');
+ if(expenseIsLinked(data))return notify('Este egreso está ligado a una compra o a un reembolso de venta.');
+ const dialog=document.getElementById('expenseEditDialog');
+ const form=dialog.querySelector('form');
+ const fields=form.elements;
+ for(const [name,source] of [['category','expenseCategory'],['payment','expensePayment']]){
+  fields[name].replaceChildren(...Array.from(document.getElementById(source).options,option=>option.cloneNode(true)));
+ }
+ Array.from(fields.category.options).find(option=>option.value==="Compra de inventario")?.remove();
+ fields.date.value=data.expense_date;
+ fields.category.value=data.category;
+ fields.description.value=data.description;
+ fields.amount.value=data.amount_cop;
+ fields.payment.value=data.payment_method;
+ fields.notes.value=data.notes||'';
+ fields.date.max=bogotaDate();
+ dialog.dataset.id=id;
+ dialog.dataset.date=data.expense_date;
+ form.querySelector('[role="alert"]').textContent='';
+ dialog.showModal();
+}
+async function saveExpenseEdit(event){
+ event.preventDefault();
+ const form=event.currentTarget,dialog=form.closest('dialog'),fields=form.elements;
+ const button=form.querySelector('button[type="submit"]'),alert=form.querySelector('[role="alert"]');
+ const date=fields.date.value,description=fields.description.value.trim(),amount=Number(fields.amount.value);
+ if(button.disabled)return;
+ if(!date||date>bogotaDate()||!description||!Number.isSafeInteger(amount)||amount<1){
+  alert.textContent='Revisa la fecha, la descripción y el valor.';return;
+ }
+ button.disabled=true;
+ alert.textContent='';
+ try{
+  const {data:closed,error:closeError}=await db.from('cash_closings').select('closing_date').in('closing_date',[...new Set([dialog.dataset.date,date])]);
+  if(closeError)throw new Error('No se pudo comprobar si el día está cerrado.');
+  if(closed.length)throw new Error('La fecha original o la nueva ya tiene un cierre guardado.');
+  const {data,error}=await db.from('expenses').update({
+   expense_date:date, description, amount_cop:amount, category:fields.category.value,
+   payment_method:fields.payment.value, notes:fields.notes.value.trim()||null
+  }).eq('id',dialog.dataset.id).eq('expense_date',dialog.dataset.date).neq('category','Compra de inventario').is('refunded_sale_id',null).select('id').maybeSingle();
+  if(error||!data)throw new Error('No se pudo guardar el cambio. Vuelve a cargar el egreso.');
+  dialog.close();
+  await Promise.all([loadExpenses(),loadSummary(),loadCashClose()]);
+  notify('Egreso actualizado.');
+ }catch(error){alert.textContent=error.message;}
+ finally{button.disabled=false;}
+}
+async function loadExpenses(){
+ const {data,error}=await db.from('expenses').select('*').order('expense_date',{ascending:false}).order('created_at',{ascending:false}).limit(40);
+ const rows=document.getElementById('expenseRows');
+ if(error){rows.innerHTML='<tr><td colspan="6">No se pudieron cargar los egresos.</td></tr>';return;}
+ rows.innerHTML=(data||[]).map(e=>{
+  const action=expenseIsLinked(e)?'<small class="muted">Movimiento vinculado</small>':
+   '<button type="button" class="button secondary action-button" data-expense-id="'+esc(e.id)+'" onclick="editExpense(this.dataset.expenseId)">Modificar</button>';
+  return '<tr><td>'+esc(e.expense_date)+'</td><td>'+esc(e.description)+'</td><td>'+esc(e.category)+'</td><td>'+esc(e.payment_method)+'</td><td>'+money(e.amount_cop)+'</td><td>'+action+'</td></tr>';
+ }).join('')||'<tr><td colspan="6">Aún no hay egresos.</td></tr>';
+}
 async function moveIncomeToRefund(button){
  const id=button.dataset.incomeId;
  if(!confirm('¿Pasar este ingreso a devolución? Se quitará de ingresos y quedará en Egresos con el mismo valor y fecha.'))return;
