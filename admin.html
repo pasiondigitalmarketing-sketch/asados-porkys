@@ -17,7 +17,16 @@
   <section id="passwordRecoveryCard" class="card hidden"><h2>Crear nueva contraseña</h2><p class="muted">Escribe una contraseña nueva para la cuenta administradora.</p><label>Nueva contraseña</label><input class="field" id="newPassword" type="password" autocomplete="new-password" minlength="8"><label>Confirmar contraseña</label><input class="field" id="confirmNewPassword" type="password" autocomplete="new-password" minlength="8"><button class="button green" type="button" onclick="updatePassword()">Guardar contraseña</button><p id="passwordRecoveryError" class="msg hidden"></p></section>
   <section id="app" class="hidden">
     <nav class="tabs"><button class="active" data-tab="resumen">Resumen</button><button data-tab="ventas">Registrar venta</button><button data-tab="pedidos">Pedidos web</button><button data-tab="inventario">Inventario</button><button data-tab="recetas">Ingredientes y recetas</button><button data-tab="ingresos">Otros ingresos</button><button data-tab="egresos">Egresos</button></nav>
-    <section id="tab-resumen" class="card"><div class="row"><h2>Resumen de caja</h2></div><div class="grid"><label>Desde<input id="reportStart" type="date" class="field" onchange="loadSummary()"></label><label>Hasta<input id="reportEnd" type="date" class="field" onchange="loadSummary()"></label></div><div id="stats" class="stats"></div><p id="recipeMarginNote" class="muted">El costo y margen de ingredientes se calculan a medida que actives recetas.</p><article class="chart-card" style="margin:18px 0"><h3>Cierre diario de caja</h3><p>Compara el efectivo esperado con el dinero contado. Las ventas, ingresos y egresos se separan por forma de pago.</p><div class="grid"><label>Fecha del cierre<input id="closeDate" type="date" class="field" onchange="loadCashClose()"></label><label>Efectivo inicial en caja<input id="cashOpening" class="field" type="number" min="0" step="1000" value="0" oninput="renderCashClosePreview()"></label><label>Efectivo contado al cierre<input id="cashCounted" class="field" type="number" min="0" step="1000" value="0" oninput="renderCashClosePreview()"></label></div><div id="cashCloseStatus" class="msg">Cargando movimientos del día…</div><div class="scroll"><table><thead><tr><th>Movimiento</th><th>Efectivo</th><th>Transferencia</th><th>Tarjeta</th><th>Otro</th><th>Total</th></tr></thead><tbody id="cashClosePreview"></tbody></table></div><label>Nota del cierre (opcional)<input id="cashCloseNotes" class="field" placeholder="Ej. faltante por cambio o gasto menor"></label><p><b>Efectivo esperado: <span id="cashExpected">$0</span></b> · Diferencia: <span id="cashDifference">$0</span></p><button id="cashCloseButton" class="button green" onclick="saveCashClose()">Guardar cierre del día</button><h4>Cierres guardados</h4><div class="scroll"><table><thead><tr><th>Fecha</th><th>Ventas</th><th>Egresos</th><th>Efectivo esperado</th><th>Contado</th><th>Diferencia</th></tr></thead><tbody id="cashCloseRows"></tbody></table></div></article><div class="charts-grid"><article class="chart-card"><h3>Ventas por día</h3><p>Total vendido por fecha, según el periodo seleccionado.</p><div id="dailySalesChart" class="chart-empty">Cargando ventas…</div></article><article class="chart-card"><h3>Productos más vendidos</h3><p>Comparación por unidades vendidas en el periodo.</p><div id="topProductsChart" class="chart-empty">Cargando ventas…</div></article></div><h3>Ventas por producto</h3><div class="scroll"><table><thead><tr><th>Producto</th><th>Unidades</th><th>Ventas</th><th>% de venta de productos</th></tr></thead><tbody id="mix"></tbody></table></div><h3>Ventas del periodo</h3><p class="muted">Aquí quedan visibles el detalle y las observaciones de los pedidos confirmados. Cambia el rango de fechas para consultar pedidos anteriores.</p><div class="scroll"><table><thead><tr><th>Fecha</th><th>Origen</th><th>Cliente / entrega</th><th>Productos</th><th>Observaciones</th><th>Pago</th><th>Total</th></tr></thead><tbody id="salesRows"></tbody></table></div></section>
+    <section id="tab-resumen" class="card"><div class="row"><h2>Resumen de caja</h2></div><div class="grid"><label>Desde<input id="reportStart" type="date" class="field" onchange="loadSummary()"></label><label>Hasta<input id="reportEnd" type="date" class="field" onchange="loadSummary()"></label></div><div id="stats" class="stats"></div>
+<section id="accountingReport" class="card">
+ <h3>Informe contable mensual</h3>
+ <div class="grid"><label>Desde mes<input id="accountingStart" type="month" class="field"></label><label>Hasta mes<input id="accountingEnd" type="month" class="field"></label></div>
+ <button type="button" class="button secondary" onclick="loadAccountingReport()">Ver gráficas</button>
+ <button type="button" class="button green" onclick="loadAccountingReport('monthly')">Descargar resumen para Power BI</button>
+ <button type="button" class="button secondary" onclick="loadAccountingReport('detail')">Descargar movimientos</button>
+ <p id="accountingStatus" role="status"></p>
+ <div id="accountingChart" class="grid"></div>
+</section><p id="recipeMarginNote" class="muted">El costo y margen de ingredientes se calculan a medida que actives recetas.</p><article class="chart-card" style="margin:18px 0"><h3>Cierre diario de caja</h3><p>Compara el efectivo esperado con el dinero contado. Las ventas, ingresos y egresos se separan por forma de pago.</p><div class="grid"><label>Fecha del cierre<input id="closeDate" type="date" class="field" onchange="loadCashClose()"></label><label>Efectivo inicial en caja<input id="cashOpening" class="field" type="number" min="0" step="1000" value="0" oninput="renderCashClosePreview()"></label><label>Efectivo contado al cierre<input id="cashCounted" class="field" type="number" min="0" step="1000" value="0" oninput="renderCashClosePreview()"></label></div><div id="cashCloseStatus" class="msg">Cargando movimientos del día…</div><div class="scroll"><table><thead><tr><th>Movimiento</th><th>Efectivo</th><th>Transferencia</th><th>Tarjeta</th><th>Otro</th><th>Total</th></tr></thead><tbody id="cashClosePreview"></tbody></table></div><label>Nota del cierre (opcional)<input id="cashCloseNotes" class="field" placeholder="Ej. faltante por cambio o gasto menor"></label><p><b>Efectivo esperado: <span id="cashExpected">$0</span></b> · Diferencia: <span id="cashDifference">$0</span></p><button id="cashCloseButton" class="button green" onclick="saveCashClose()">Guardar cierre del día</button><h4>Cierres guardados</h4><div class="scroll"><table><thead><tr><th>Fecha</th><th>Ventas</th><th>Egresos</th><th>Efectivo esperado</th><th>Contado</th><th>Diferencia</th></tr></thead><tbody id="cashCloseRows"></tbody></table></div></article><div class="charts-grid"><article class="chart-card"><h3>Ventas por día</h3><p>Total vendido por fecha, según el periodo seleccionado.</p><div id="dailySalesChart" class="chart-empty">Cargando ventas…</div></article><article class="chart-card"><h3>Productos más vendidos</h3><p>Comparación por unidades vendidas en el periodo.</p><div id="topProductsChart" class="chart-empty">Cargando ventas…</div></article></div><h3>Ventas por producto</h3><div class="scroll"><table><thead><tr><th>Producto</th><th>Unidades</th><th>Ventas</th><th>% de venta de productos</th></tr></thead><tbody id="mix"></tbody></table></div><h3>Ventas del periodo</h3><p class="muted">Aquí quedan visibles el detalle y las observaciones de los pedidos confirmados. Cambia el rango de fechas para consultar pedidos anteriores.</p><div class="scroll"><table><thead><tr><th>Fecha</th><th>Origen</th><th>Cliente / entrega</th><th>Productos</th><th>Observaciones</th><th>Pago</th><th>Total</th></tr></thead><tbody id="salesRows"></tbody></table></div></section>
     <section id="tab-ventas" class="card hidden"><h2>Registrar venta del local</h2><div class="grid"><label>Producto<select id="posProduct" class="field"></select></label><label>Cantidad<input id="posQty" class="field" type="number" min="0.01" step="0.01" value="1"></label></div><button class="button secondary" onclick="addToPos()">Agregar producto</button><div class="scroll"><table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th></th></tr></thead><tbody id="posRows"></tbody></table></div><div class="grid"><label>Forma de pago<select id="posPayment" class="field"><option>efectivo</option><option>transferencia</option><option>tarjeta</option><option>otro</option></select></label><label>Nota (opcional)<input id="posNotes" class="field"></label></div><div class="row"><b>Total: <span id="posTotal">$0</span></b><button class="button green" onclick="savePosSale()">Guardar venta</button></div></section>
     <section id="tab-pedidos" class="card hidden"><h2>Pedidos de la página</h2><p class="muted">Confirma solo los pedidos que verificaste por WhatsApp. Al confirmar se registra la venta y se descuenta el inventario.</p><div class="scroll"><table><thead><tr><th>Hora</th><th>Cliente / entrega</th><th>Detalle</th><th>Total</th><th>Acciones</th></tr></thead><tbody id="orders"></tbody></table></div></section>
     <section id="tab-inventario" class="card hidden"><h2>Inventario del menú</h2><p class="muted">La primera carga comienza en cero. Registra las existencias iniciales. Los movimientos quedan en el historial. Puedes actualizar precios aquí.</p><div class="scroll"><table><thead><tr><th>Producto</th><th>Precio actual</th><th>Existencia / control</th><th>Unidad</th><th>Entrada / ajuste</th></tr></thead><tbody id="products"></tbody></table></div></section>
@@ -105,7 +114,7 @@
 <script>
 const money=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n)||0);let db,products=[],posCart={},recoveryMode=false,receiptSales={},receiptItems={},cashCloseState={sales:{},incomes:{},expenses:{},closing:null};
 function notify(s){const t=document.getElementById('toast');t.textContent=s;t.style.display='block';setTimeout(()=>t.style.display='none',2800)}
-async function init(){if(!window.PORKYS_SUPABASE_URL||window.PORKYS_SUPABASE_URL.includes('TU-PROYECTO')||!window.PORKYS_SUPABASE_ANON_KEY||window.PORKYS_SUPABASE_ANON_KEY.includes('TU-CLAVE')){document.getElementById('setupWarning').classList.remove('hidden');return}db=window.supabase.createClient(window.PORKYS_SUPABASE_URL,window.PORKYS_SUPABASE_ANON_KEY);const today=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Bogota'}),monthStart=today.slice(0,8)+'01';document.getElementById('reportStart').value=monthStart;document.getElementById('reportEnd').value=today;document.getElementById('closeDate').value=today;const recoveryHash=new URLSearchParams(window.location.hash.slice(1));recoveryMode=recoveryHash.get("type")==="recovery";db.auth.onAuthStateChange((event,s)=>{if(event==="PASSWORD_RECOVERY"||recoveryMode){showPasswordRecovery();return}void showSession(s)});const {data:{session}}=await db.auth.getSession();if(recoveryMode){if(session)showPasswordRecovery();else{recoveryMode=false;document.getElementById("loginCard").classList.remove("hidden");document.getElementById("loginError").textContent="El enlace venció o ya se usó. Solicita uno nuevo.";document.getElementById("loginError").classList.remove("hidden")}return}await showSession(session);document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));}
+async function init(){if(!window.PORKYS_SUPABASE_URL||window.PORKYS_SUPABASE_URL.includes('TU-PROYECTO')||!window.PORKYS_SUPABASE_ANON_KEY||window.PORKYS_SUPABASE_ANON_KEY.includes('TU-CLAVE')){document.getElementById('setupWarning').classList.remove('hidden');return}db=window.supabase.createClient(window.PORKYS_SUPABASE_URL,window.PORKYS_SUPABASE_ANON_KEY);const today=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Bogota'}),monthStart=today.slice(0,8)+'01';document.getElementById('reportStart').value=monthStart;document.getElementById('reportEnd').value=today;document.getElementById('closeDate').value=today;initAccountingReport();const recoveryHash=new URLSearchParams(window.location.hash.slice(1));recoveryMode=recoveryHash.get("type")==="recovery";db.auth.onAuthStateChange((event,s)=>{if(event==="PASSWORD_RECOVERY"||recoveryMode){showPasswordRecovery();return}void showSession(s)});const {data:{session}}=await db.auth.getSession();if(recoveryMode){if(session)showPasswordRecovery();else{recoveryMode=false;document.getElementById("loginCard").classList.remove("hidden");document.getElementById("loginError").textContent="El enlace venció o ya se usó. Solicita uno nuevo.";document.getElementById("loginError").classList.remove("hidden")}return}await showSession(session);document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));}
 async function showSession(session){const logged=!!session;document.getElementById('loginCard').classList.toggle('hidden',logged);document.getElementById('app').classList.add('hidden');document.getElementById('logout').classList.toggle('hidden',!logged);if(!logged)return;const {data:admin,error}=await db.from('admin_users').select('user_id').eq('user_id',session.user.id).maybeSingle();if(error||!admin){await db.auth.signOut();document.getElementById('loginCard').classList.remove('hidden');document.getElementById('loginError').textContent='Esta cuenta no está autorizada como administrador.';document.getElementById('loginError').classList.remove('hidden');return}document.getElementById('loginCard').classList.add('hidden');document.getElementById('app').classList.remove('hidden');await Promise.all([loadProducts(),loadSummary(),loadOrders(),loadExpenses(),loadCashClose()]);await loadRecipeTools();}
 function showPasswordRecovery(){recoveryMode=true;document.getElementById("loginCard").classList.add("hidden");document.getElementById("passwordRecoveryCard").classList.remove("hidden");document.getElementById("app").classList.add("hidden");document.getElementById("logout").classList.add("hidden")}async function updatePassword(){const password=document.getElementById("newPassword").value,confirmPassword=document.getElementById("confirmNewPassword").value,errorBox=document.getElementById("passwordRecoveryError");errorBox.classList.add("hidden");if(password.length<8){errorBox.textContent="La contraseña debe tener al menos 8 caracteres.";errorBox.classList.remove("hidden");return}if(password!==confirmPassword){errorBox.textContent="Las contraseñas no coinciden.";errorBox.classList.remove("hidden");return}const {error}=await db.auth.updateUser({password});if(error){errorBox.textContent=error.message;errorBox.classList.remove("hidden");return}history.replaceState(null,"",window.location.pathname+window.location.search);recoveryMode=false;await db.auth.signOut();document.getElementById("passwordRecoveryCard").classList.add("hidden");document.getElementById("loginCard").classList.remove("hidden");document.getElementById("loginError").textContent="Contraseña actualizada. Ya puedes iniciar sesión.";document.getElementById("loginError").classList.remove("hidden")}async function requestPasswordReset(){const email=document.getElementById("email").value.trim(),msg=document.getElementById("resetRequestMsg");msg.classList.add("hidden");if(!email){msg.textContent="Escribe primero el correo de la cuenta administradora.";msg.classList.remove("hidden");return}const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+"/admin.html"});msg.textContent=error?"No fue posible enviar el enlace. Intenta nuevamente.":"Si el correo está registrado, llegará un enlace para crear una contraseña nueva.";msg.classList.remove("hidden")}async function signIn(){document.getElementById('loginError').classList.add('hidden');const {error}=await db.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value});if(error){const e=document.getElementById('loginError');e.textContent='No fue posible iniciar sesión. Verifica tus datos.';e.classList.remove('hidden')}}async function signOut(){await db.auth.signOut()}
 function switchTab(name){document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));document.querySelectorAll('[id^="tab-"]').forEach(s=>s.classList.toggle('hidden',s.id!=='tab-'+name));if(name==='inventario')loadProducts();if(name==='pedidos')loadOrders();if(name==='resumen')loadSummary();if(name==='egresos')loadExpenses();if(name==='ingresos')loadIncomes()}
@@ -330,6 +339,99 @@ function printSaleReceipt(id){
 async function switchTab(name){
  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));document.querySelectorAll('[id^="tab-"]').forEach(s=>s.classList.toggle('hidden',s.id!=='tab-'+name));
  if(name==='inventario')loadProducts();if(name==='recetas')await loadRecipeTools();if(name==='pedidos')loadOrders();if(name==='resumen'){await Promise.all([loadSummary(),loadCashClose()])}if(name==='egresos')loadExpenses();if(name==='ingresos')loadIncomes();
+}
+async function accountingRows(table,columns,dateColumn,start,end,confirmed=false){
+ const rows=[];
+ for(let offset=0;;offset+=500){
+  let query=db.from(table).select(columns).gte(dateColumn,start).lt(dateColumn,end);
+  if(confirmed)query=query.eq('status','confirmed');
+  const {data,error}=await query.order(dateColumn).order('id').range(offset,offset+499);
+  if(error)throw new Error(error.message);
+  rows.push(...data);
+  if(data.length<500)return rows;
+ }
+}
+function accountingLocalDate(timestamp){
+ return new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Bogota'}).format(new Date(timestamp));
+}
+function accountingCsv(filename,rows){
+ const csv=rows.map(row=>row.map(value=>{
+  const raw=String(value??'');
+  const safe=typeof value==='string'&&/^[\s\uFEFF]*[=+\-@]/.test(raw)?"'"+raw:raw;
+  return '"'+safe.replaceAll('"','""')+'"';
+ }).join(',')).join('\r\n');
+ const url=URL.createObjectURL(new Blob(['\uFEFF',csv],{type:'text/csv;charset=utf-8'}));
+ const link=document.createElement('a');
+ link.href=url;link.download=filename;
+ document.body.appendChild(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function renderAccountingMonths(months){
+ const series=[['ventas','Ventas brutas','#167d3a'],['ingresos','Otros ingresos','#2543a6'],['egresos','Otros egresos','#965c07'],['devoluciones','Devoluciones','#ad2929'],['neto','Saldo neto','#55409d']];
+ const scale=Math.max(1,...months.flatMap(month=>series.map(([key])=>Math.abs(month[key]))));
+ document.getElementById('accountingChart').innerHTML=months.map(month=>
+  '<section class="card"><h4>'+esc(month.mes)+'</h4>'+series.map(([key,label,color])=>
+   '<div class="row"><span>'+label+'</span><strong>'+money(month[key])+'</strong></div>'+
+   '<div aria-hidden="true" style="height:6px;margin-bottom:7px;background:#eee"><div style="height:100%;width:'+100*Math.abs(month[key])/scale+'%;background:'+color+'"></div></div>'
+  ).join('')+'</section>'
+ ).join('');
+}
+async function loadAccountingReport(action='view'){
+ const status=document.getElementById('accountingStatus');
+ const from=document.getElementById('accountingStart').value,to=document.getElementById('accountingEnd').value;
+ if(!from||!to||from>to){status.textContent='Elige un rango de meses válido.';return;}
+ const first=new Date(from+'-01T00:00:00Z'),last=new Date(to+'-01T00:00:00Z');
+ const count=(last.getUTCFullYear()-first.getUTCFullYear())*12+last.getUTCMonth()-first.getUTCMonth()+1;
+ if(count>60){status.textContent='Selecciona hasta 60 meses por descarga.';return;}
+ const end=new Date(last);end.setUTCMonth(end.getUTCMonth()+1);
+ const startDate=from+'-01',endDate=end.toISOString().slice(0,10);
+ const buttons=document.querySelectorAll('#accountingReport button');
+ buttons.forEach(button=>button.disabled=true);
+ status.textContent='Consultando movimientos…';
+ document.getElementById('accountingChart').replaceChildren();
+ try{
+  const [sales,income,expenses]=await Promise.all([
+   accountingRows('sales','id,confirmed_at,total_cop,payment_method,source,delivery_fee_cop','confirmed_at',startDate+'T00:00:00-05:00',endDate+'T00:00:00-05:00',true),
+   accountingRows('other_income','id,income_date,amount_cop,category,payment_method,description,notes','income_date',startDate,endDate),
+   accountingRows('expenses','id,expense_date,amount_cop,category,payment_method,description,notes,period_start,period_end','expense_date',startDate,endDate)
+  ]);
+  const moves=[
+   ...sales.map(s=>({date:accountingLocalDate(s.confirmed_at),type:'ventas',category:s.source,amount:Number(s.total_cop),payment:s.payment_method,fee:s.delivery_fee_cop,id:s.id})),
+   ...income.map(i=>({date:i.income_date,type:i.category==='Reembolso'?'devoluciones':'ingresos',category:i.category,amount:Number(i.amount_cop),payment:i.payment_method,description:i.description,notes:i.notes,id:i.id})),
+   ...expenses.map(e=>({date:e.expense_date,type:e.category==='Devoluciones'?'devoluciones':'egresos',category:e.category,amount:Number(e.amount_cop),payment:e.payment_method,description:e.description,notes:e.notes,start:e.period_start,end:e.period_end,id:e.id}))
+  ];
+  const months=new Map();
+  for(let d=new Date(first);d<end;d.setUTCMonth(d.getUTCMonth()+1)){
+   const mes=d.toISOString().slice(0,7);
+   months.set(mes,{mes,ventas:0,ingresos:0,egresos:0,devoluciones:0,neto:0});
+  }
+  for(const movement of moves){
+   const month=months.get(movement.date.slice(0,7));
+   if(month)month[movement.type]+=movement.amount;
+  }
+  const totals=[...months.values()];
+  for(const m of totals)m.neto=m.ventas+m.ingresos-m.egresos-m.devoluciones;
+  renderAccountingMonths(totals);
+  const suffix=from+'_'+to+'.csv';
+  if(action==='monthly')accountingCsv('Porkys_Resumen_'+suffix,[
+   ['Mes','Ventas brutas COP','Otros ingresos COP','Otros egresos COP','Devoluciones COP','Saldo neto COP'],
+   ...totals.map(m=>[m.mes+'-01',m.ventas,m.ingresos,m.egresos,m.devoluciones,m.neto])
+  ]);
+  const sign=type=>type==='egresos'||type==='devoluciones'?-1:1;
+  if(action==='detail')accountingCsv('Porkys_Movimientos_'+suffix,[
+   ['Fecha','Mes','Tipo','Categoria','Medio de pago','Valor COP','Efecto en caja COP','Domicilio incluido COP','Descripcion','Observaciones','Periodo desde','Periodo hasta','ID'],
+   ...moves.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id)).map(m=>[m.date,m.date.slice(0,7)+'-01',m.type,m.category,m.payment,m.amount,sign(m.type)*m.amount,m.fee,m.description,m.notes,m.start,m.end,m.id])
+  ]);
+  status.textContent=moves.length?moves.length+' movimientos en '+count+' meses.':'Sin movimientos en el periodo.';
+ }catch(error){status.textContent='No se pudo generar el informe. '+error.message;}
+ finally{buttons.forEach(button=>button.disabled=false);}
+}
+function initAccountingReport(){
+ const end=bogotaDate().slice(0,7);
+ const start=new Date(end+'-01T00:00:00Z');
+ start.setUTCMonth(start.getUTCMonth()-11);
+ document.getElementById('accountingStart').value=start.toISOString().slice(0,7);
+ document.getElementById('accountingEnd').value=end;
 }
 function bogotaDate(){
  return new Date().toLocaleDateString('sv-SE',{timeZone:'America/Bogota'});
