@@ -68,6 +68,19 @@
     </div>
   </form>
 </dialog>
+<dialog id="expenseRemoveDialog" class="income-dialog">
+ <form onsubmit="saveExpenseRemoval(event)">
+  <h2>Eliminar egreso</h2>
+  <p id="expenseRemoveDetails"></p>
+  <p>El egreso se retirará del balance y quedará una copia de auditoría.</p>
+  <label>Motivo<input name="reason" class="field" maxlength="250" required></label>
+  <p role="alert"></p>
+  <div class="dialog-actions">
+   <button type="button" class="button secondary" onclick="this.closest('dialog').close()">Volver</button>
+   <button type="submit" class="button danger">Confirmar eliminación</button>
+  </div>
+ </form>
+</dialog>
 <dialog id="expenseEditDialog" class="income-dialog">
  <form onsubmit="saveExpenseEdit(event)">
   <h2>Modificar egreso</h2>
@@ -159,13 +172,40 @@ async function saveExpenseEdit(event){
  }catch(error){alert.textContent=error.message;}
  finally{button.disabled=false;}
 }
+function openExpenseRemoval(button){
+ const dialog=document.getElementById('expenseRemoveDialog'),form=dialog.querySelector('form');
+ form.reset();
+ form.querySelector('[role="alert"]').textContent='';
+ dialog.dataset.id=button.dataset.expenseId;
+ document.getElementById('expenseRemoveDetails').textContent=button.dataset.expenseLabel;
+ dialog.showModal();
+}
+async function saveExpenseRemoval(event){
+ event.preventDefault();
+ const form=event.currentTarget,dialog=form.closest('dialog');
+ const button=form.querySelector('button[type="submit"]'),alert=form.querySelector('[role="alert"]');
+ const reason=form.elements.reason.value.trim();
+ if(button.disabled)return;
+ if(!reason){alert.textContent='Escribe el motivo.';return;}
+ button.disabled=true;
+ alert.textContent='';
+ try{
+  const {error}=await db.rpc('remove_manual_expense',{p_expense_id:dialog.dataset.id,p_reason:reason});
+  if(error){alert.textContent=error.message;return;}
+  dialog.close();
+  await Promise.all([loadExpenses(),loadSummary(),loadCashClose()]);
+  notify('Egreso eliminado del balance.');
+ }catch{alert.textContent='No se pudo confirmar la eliminación. Revisa la lista antes de volver a intentarlo.';}
+ finally{button.disabled=false;}
+}
 async function loadExpenses(){
  const {data,error}=await db.from('expenses').select('*').order('expense_date',{ascending:false}).order('created_at',{ascending:false}).limit(40);
  const rows=document.getElementById('expenseRows');
  if(error){rows.innerHTML='<tr><td colspan="6">No se pudieron cargar los egresos.</td></tr>';return;}
  rows.innerHTML=(data||[]).map(e=>{
   const action=expenseIsLinked(e)?'<small class="muted">Movimiento vinculado</small>':
-   '<button type="button" class="button secondary action-button" data-expense-id="'+esc(e.id)+'" onclick="editExpense(this.dataset.expenseId)">Modificar</button>';
+   '<button type="button" class="button secondary action-button" data-expense-id="'+esc(e.id)+'" onclick="editExpense(this.dataset.expenseId)">Modificar</button> '+
+   '<button type="button" class="button danger action-button" data-expense-id="'+esc(e.id)+'" data-expense-label="'+esc(e.description+' · '+money(e.amount_cop))+'" onclick="openExpenseRemoval(this)">Eliminar</button>';
   return '<tr><td>'+esc(e.expense_date)+'</td><td>'+esc(e.description)+'</td><td>'+esc(e.category)+'</td><td>'+esc(e.payment_method)+'</td><td>'+money(e.amount_cop)+'</td><td>'+action+'</td></tr>';
  }).join('')||'<tr><td colspan="6">Aún no hay egresos.</td></tr>';
 }
