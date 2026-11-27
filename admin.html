@@ -54,7 +54,21 @@
     <section id="tab-egresos" class="card hidden"><h2>Registrar egreso</h2><div class="grid"><label>Descripción<input id="expenseDescription" class="field" placeholder="Ej. compra de insumos"></label><label>Categoría<select id="expenseCategory" class="field"><option>Compra de inventario</option><option>Servicios</option><option>Arriendo</option><option>Nómina</option><option>Domicilios</option><option>Mantenimiento</option><option>Otro</option></select></label><label>Valor en pesos<input id="expenseAmount" class="field" type="number" min="1"></label><label>Forma de pago<select id="expensePayment" class="field"><option>efectivo</option><option>transferencia</option><option>tarjeta</option><option>otro</option></select></label></div><label>Nota (opcional)<input id="expenseNotes" class="field"></label><button class="button" onclick="saveExpense()">Guardar egreso</button><h3>Egresos recientes</h3><div class="scroll"><table><thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Valor</th></tr></thead><tbody id="expenseRows"></tbody></table></div></section>
   </section>
 </main><div id="toast"></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><dialog id="refundDialog" class="income-dialog">
+  <form onsubmit="saveSaleRefund(event)">
+    <h2>Registrar devolución total</h2>
+    <p id="refundTotal"></p>
+    <p>El valor se registra como egreso de hoy. Si corresponde, ajusta las existencias desde Inventario.</p>
+    <label>Motivo <input id="refundReason" class="field" maxlength="250" required></label>
+    <label>Medio de devolución <select id="refundPayment" class="field" required><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></label>
+    <p id="refundError" role="alert"></p>
+    <div class="dialog-actions">
+      <button type="button" class="button secondary" onclick="this.closest('dialog').close()">Volver</button>
+      <button id="refundSubmit" class="button danger" type="submit">Confirmar devolución</button>
+    </div>
+  </form>
+</dialog>
+<script src="config.js"></script>
 <script>
 const money=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n)||0);let db,products=[],posCart={},recoveryMode=false,receiptSales={},receiptItems={},cashCloseState={sales:{},incomes:{},expenses:{},closing:null};
 function notify(s){const t=document.getElementById('toast');t.textContent=s;t.style.display='block';setTimeout(()=>t.style.display='none',2800)}
@@ -230,24 +244,67 @@ function renderSalesCharts(sales,items,from,to){
   top.className='chart-scroll';top.innerHTML='<svg role="img" aria-label="Productos más vendidos por unidades" viewBox="0 0 '+w+' '+h+'" xmlns="http://www.w3.org/2000/svg">'+bars+'</svg>';
  }
 }
+function openSaleRefund(id){
+ const sale=receiptSales[id];
+ if(!sale || (Array.isArray(sale.refund)?sale.refund.length:sale.refund) || Number(sale.total_cop)<=0)return;
+ const dialog=document.getElementById('refundDialog');
+ dialog.dataset.saleId=id;
+ document.getElementById('refundTotal').textContent=money(sale.total_cop);
+ document.getElementById('refundReason').value='';
+ document.getElementById('refundPayment').value=sale.payment_method||'efectivo';
+ document.getElementById('refundError').textContent='';
+ dialog.showModal();
+}
+async function saveSaleRefund(event){
+ event.preventDefault();
+ const dialog=document.getElementById('refundDialog');
+ const button=document.getElementById('refundSubmit');
+ const errorLabel=document.getElementById('refundError');
+ const reason=document.getElementById('refundReason').value.trim();
+ if(button.disabled)return;
+ if(!reason){errorLabel.textContent='Escribe el motivo de la devolución.';return;}
+ button.disabled=true;
+ errorLabel.textContent='';
+ try{
+  const {error}=await db.rpc('record_sale_refund',{
+   p_sale_id:dialog.dataset.saleId,
+   p_reason:reason,
+   p_payment_method:document.getElementById('refundPayment').value
+  });
+  if(error){errorLabel.textContent=error.message;return;}
+  dialog.close();
+  await Promise.all([loadSummary(),loadCashClose(),loadExpenses()]);
+  notify('Devolución registrada en caja.');
+ }catch{
+  errorLabel.textContent='No se pudo confirmar el resultado. Revisa el historial antes de intentar de nuevo.';
+ }finally{
+  button.disabled=false;
+ }
+}
+function saleRefundAction(sale){
+ const refund=Array.isArray(sale.refund)?sale.refund[0]:sale.refund;
+ if(refund)return '<br><span class="pill no">Devuelta</span><br><small>'+esc(refund.expense_date)+' · '+esc(refund.notes)+'</small>';
+ if(Number(sale.total_cop)<=0)return '';
+ return '<br><button type="button" class="button danger" onclick="openSaleRefund(this.dataset.saleId)" data-sale-id="'+esc(sale.id)+'">Registrar devolución</button>';
+}
 async function loadSummary(){
  if(!db)return;const from=document.getElementById('reportStart').value,to=document.getElementById('reportEnd').value;if(!from||!to||from>to)return;
  const start=new Date(from+'T00:00:00-05:00').toISOString(),end=new Date(to+'T23:59:59.999-05:00').toISOString();
  const [{data:sales},{data:expenses},{data:items},{data:extraIncome},{data:cogs}]=await Promise.all([
-  db.from('sales').select('id,total_cop,delivery_fee_cop,source,customer_name,delivery_type,delivery_address,notes,payment_method,confirmed_at').eq('status','confirmed').gte('confirmed_at',start).lte('confirmed_at',end),
-  db.from('expenses').select('amount_cop').gte('expense_date',from).lte('expense_date',to),
+  db.from('sales').select('id,total_cop,delivery_fee_cop,source,customer_name,delivery_type,delivery_address,notes,payment_method,confirmed_at,refund:expenses!expenses_refunded_sale_id_fkey(expense_date,notes)').eq('status','confirmed').gte('confirmed_at',start).lte('confirmed_at',end),
+  db.from('expenses').select('amount_cop,refunded_sale_id').gte('expense_date',from).lte('expense_date',to),
   db.from('sale_items').select('product_name,quantity,line_total_cop,sale_id,sales!inner(status,confirmed_at)').eq('sales.status','confirmed').gte('sales.confirmed_at',start).lte('sales.confirmed_at',end),
   db.from('other_income').select('amount_cop').gte('income_date',from).lte('income_date',to),
   db.from('ingredient_movements').select('quantity_change,unit_cost_cop').eq('movement_type','sale').gte('created_at',start).lte('created_at',end)
  ]);
  const salesTotal=(sales||[]).reduce((a,s)=>a+Number(s.total_cop),0),otherTotal=(extraIncome||[]).reduce((a,e)=>a+Number(e.amount_cop),0),income=salesTotal+otherTotal,out=(expenses||[]).reduce((a,e)=>a+Number(e.amount_cop),0),net=income-out,units=(items||[]).reduce((a,i)=>a+Number(i.quantity),0),productSales=(items||[]).reduce((a,i)=>a+Number(i.line_total_cop),0),cogsTotal=(cogs||[]).reduce((a,m)=>a+Math.abs(Number(m.quantity_change))*Number(m.unit_cost_cop),0);
- document.getElementById('stats').innerHTML=[['Ventas confirmadas',money(salesTotal)],['Otros ingresos',money(otherTotal)],['Egresos registrados',money(out)],['Balance de caja',money(net)],['Costo de ingredientes con receta',money(cogsTotal)],['Margen bruto estimado',money(salesTotal-cogsTotal)],['Productos vendidos',units]].map(([l,v])=>'<div class="stat"><small>'+l+'</small><strong>'+v+'</strong></div>').join('');
+ document.getElementById('stats').innerHTML=[['Ventas brutas',money(salesTotal)],['Devoluciones',money((expenses||[]).filter(e=>e.refunded_sale_id).reduce((total,e)=>total+Number(e.amount_cop),0))],['Otros ingresos',money(otherTotal)],['Egresos registrados',money(out)],['Balance de caja',money(net)],['Costo de ingredientes con receta',money(cogsTotal)],['Margen bruto estimado',money(salesTotal-cogsTotal)],['Productos vendidos',units]].map(([l,v])=>'<div class="stat"><small>'+l+'</small><strong>'+v+'</strong></div>').join('');
  document.getElementById('recipeMarginNote').textContent='El costo y margen solo incluyen ventas con receta activa y los costos promedio registrados. Productos sin receta aún no cuentan sus ingredientes.';
  const grouped={};(items||[]).forEach(i=>{grouped[i.product_name]??={q:0,v:0};grouped[i.product_name].q+=Number(i.quantity);grouped[i.product_name].v+=Number(i.line_total_cop)});
  renderSalesCharts(sales||[],items||[],from,to);
  document.getElementById('mix').innerHTML=Object.entries(grouped).sort((a,b)=>b[1].v-a[1].v).map(([n,x])=>'<tr><td>'+esc(n)+'</td><td>'+x.q+'</td><td>'+money(x.v)+'</td><td>'+(productSales?Math.round(x.v/productSales*100)+'%':'0%')+'</td></tr>').join('')||'<tr><td colspan="4">Sin ventas confirmadas en este periodo.</td></tr>';
  const saleDetails={};(items||[]).forEach(i=>{(saleDetails[i.sale_id]??=[]).push(i)});
  receiptSales=Object.fromEntries((sales||[]).map(s=>[s.id,s]));receiptItems=saleDetails;
- document.getElementById('salesRows').innerHTML=(sales||[]).sort((a,b)=>a.confirmed_at.localeCompare(b.confirmed_at)).reverse().map(s=>{const detail=(saleDetails[s.id]||[]).map(i=>esc(i.quantity)+' × '+esc(i.product_name)+' <small>('+money(i.line_total_cop)+')</small>').join('<br>')||'—',service=s.delivery_type&&s.delivery_type.startsWith('Mesa ')?'Consumo en el local · '+s.delivery_type:s.delivery_type,delivery=[service,s.delivery_address].filter(Boolean).map(esc).join('<br>'),current=s.payment_method||'efectivo',options=[['efectivo','Efectivo'],['transferencia','Transferencia'],...(current==='tarjeta'?[['tarjeta','Tarjeta']]:[]),...(current==='otro'?[['otro','Otro']]:[])].map(([v,label])=>'<option value="'+v+'"'+(current===v?' selected':'')+'>'+label+'</option>').join('');return '<tr><td>'+new Date(s.confirmed_at).toLocaleString('es-CO')+'</td><td>'+(s.source==='local'?'Local':'WhatsApp')+'</td><td>'+esc(s.customer_name||'Venta directa')+(delivery?'<br><small>'+delivery+'</small>':'')+'</td><td>'+detail+'</td><td>'+esc(s.notes||'—')+'</td><td><select id="sale-payment-'+s.id+'" class="field" aria-label="Medio de pago">'+options+'</select><button type="button" class="button secondary" onclick="saveSalePayment(\''+s.id+'\')">Guardar</button><button type="button" class="button secondary" onclick="printSaleReceipt(\''+s.id+'\')">Comprobante</button></td><td>'+money(s.total_cop)+'</td></tr>'}).join('')||'<tr><td colspan="7">Sin ventas confirmadas en este periodo.</td></tr>';
+ document.getElementById('salesRows').innerHTML=(sales||[]).sort((a,b)=>a.confirmed_at.localeCompare(b.confirmed_at)).reverse().map(s=>{const detail=(saleDetails[s.id]||[]).map(i=>esc(i.quantity)+' × '+esc(i.product_name)+' <small>('+money(i.line_total_cop)+')</small>').join('<br>')||'—',service=s.delivery_type&&s.delivery_type.startsWith('Mesa ')?'Consumo en el local · '+s.delivery_type:s.delivery_type,delivery=[service,s.delivery_address].filter(Boolean).map(esc).join('<br>'),current=s.payment_method||'efectivo',options=[['efectivo','Efectivo'],['transferencia','Transferencia'],...(current==='tarjeta'?[['tarjeta','Tarjeta']]:[]),...(current==='otro'?[['otro','Otro']]:[])].map(([v,label])=>'<option value="'+v+'"'+(current===v?' selected':'')+'>'+label+'</option>').join('');return '<tr><td>'+new Date(s.confirmed_at).toLocaleString('es-CO')+'</td><td>'+(s.source==='local'?'Local':'WhatsApp')+'</td><td>'+esc(s.customer_name||'Venta directa')+(delivery?'<br><small>'+delivery+'</small>':'')+'</td><td>'+detail+'</td><td>'+esc(s.notes||'—')+'</td><td><select id="sale-payment-'+s.id+'" class="field" aria-label="Medio de pago">'+options+'</select><button type="button" class="button secondary" onclick="saveSalePayment(\''+s.id+'\')">Guardar</button><button type="button" class="button secondary" onclick="printSaleReceipt(\''+s.id+'\')">Comprobante</button>'+saleRefundAction(s)+'</td><td>'+money(s.total_cop)+'</td></tr>'}).join('')||'<tr><td colspan="7">Sin ventas confirmadas en este periodo.</td></tr>';
 }function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}init();
 </script></body></html>
