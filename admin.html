@@ -25,7 +25,7 @@
  <button type="button" class="button green" onclick="loadAccountingReport('monthly')">Descargar resumen para Power BI</button>
  <button type="button" class="button secondary" onclick="loadAccountingReport('detail')">Descargar movimientos</button>
  <p id="accountingStatus" role="status"></p>
- <div id="accountingChart" class="grid"></div>
+ <p class="muted">El saldo neto es lo que entró menos lo que salió en el periodo. Los egresos se agrupan por fecha de pago; el periodo pagado se conserva en el detalle. El saldo neto mide caja y puede diferir de la ganancia.</p><div id="accountingBreakdown"></div><details><summary>Gráficas mensuales</summary><div id="accountingChart" class="grid"></div></details>
 </section><p id="recipeMarginNote" class="muted">El costo y margen de ingredientes se calculan a medida que actives recetas.</p><article class="chart-card" style="margin:18px 0"><h3>Cierre diario de caja</h3><p>Compara el efectivo esperado con el dinero contado. Las ventas, ingresos y egresos se separan por forma de pago.</p><div class="grid"><label>Fecha del cierre<input id="closeDate" type="date" class="field" onchange="loadCashClose()"></label><label>Efectivo inicial en caja<input id="cashOpening" class="field" type="number" min="0" step="1000" value="0" oninput="renderCashClosePreview()"></label><label>Efectivo contado al cierre<input id="cashCounted" class="field" type="number" min="0" step="1000" value="0" oninput="renderCashClosePreview()"></label></div><div id="cashCloseStatus" class="msg">Cargando movimientos del día…</div><div class="scroll"><table><thead><tr><th>Movimiento</th><th>Efectivo</th><th>Transferencia</th><th>Tarjeta</th><th>Otro</th><th>Total</th></tr></thead><tbody id="cashClosePreview"></tbody></table></div><label>Nota del cierre (opcional)<input id="cashCloseNotes" class="field" placeholder="Ej. faltante por cambio o gasto menor"></label><p><b>Efectivo esperado: <span id="cashExpected">$0</span></b> · Diferencia: <span id="cashDifference">$0</span></p><button id="cashCloseButton" class="button green" onclick="saveCashClose()">Guardar cierre del día</button><h4>Cierres guardados</h4><div class="scroll"><table><thead><tr><th>Fecha</th><th>Ventas</th><th>Egresos</th><th>Efectivo esperado</th><th>Contado</th><th>Diferencia</th></tr></thead><tbody id="cashCloseRows"></tbody></table></div></article><div class="charts-grid"><article class="chart-card"><h3>Ventas por día</h3><p>Total vendido por fecha, según el periodo seleccionado.</p><div id="dailySalesChart" class="chart-empty">Cargando ventas…</div></article><article class="chart-card"><h3>Productos más vendidos</h3><p>Comparación por unidades vendidas en el periodo.</p><div id="topProductsChart" class="chart-empty">Cargando ventas…</div></article></div><h3>Ventas por producto</h3><div class="scroll"><table><thead><tr><th>Producto</th><th>Unidades</th><th>Ventas</th><th>% de venta de productos</th></tr></thead><tbody id="mix"></tbody></table></div><h3>Ventas del periodo</h3><p class="muted">Aquí quedan visibles el detalle y las observaciones de los pedidos confirmados. Cambia el rango de fechas para consultar pedidos anteriores.</p><div class="scroll"><table><thead><tr><th>Fecha</th><th>Origen</th><th>Cliente / entrega</th><th>Productos</th><th>Observaciones</th><th>Pago</th><th>Total</th></tr></thead><tbody id="salesRows"></tbody></table></div></section>
     <section id="tab-ventas" class="card hidden"><h2>Registrar venta del local</h2><div class="grid"><label>Producto<select id="posProduct" class="field"></select></label><label>Cantidad<input id="posQty" class="field" type="number" min="0.01" step="0.01" value="1"></label></div><button class="button secondary" onclick="addToPos()">Agregar producto</button><div class="scroll"><table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th></th></tr></thead><tbody id="posRows"></tbody></table></div><div class="grid"><label>Forma de pago<select id="posPayment" class="field"><option>efectivo</option><option>transferencia</option><option>tarjeta</option><option>otro</option></select></label><label>Nota (opcional)<input id="posNotes" class="field"></label></div><div class="row"><b>Total: <span id="posTotal">$0</span></b><button class="button green" onclick="savePosSale()">Guardar venta</button></div></section>
     <section id="tab-pedidos" class="card hidden"><h2>Pedidos de la página</h2><p class="muted">Confirma solo los pedidos que verificaste por WhatsApp. Al confirmar se registra la venta y se descuenta el inventario.</p><div class="scroll"><table><thead><tr><th>Hora</th><th>Cliente / entrega</th><th>Detalle</th><th>Total</th><th>Acciones</th></tr></thead><tbody id="orders"></tbody></table></div></section>
@@ -376,6 +376,30 @@ function renderAccountingMonths(months){
   ).join('')+'</section>'
  ).join('');
 }
+function renderAccountingBreakdown(months,moves){
+ const target=document.getElementById('accountingBreakdown');
+ const cells=values=>'<tr>'+values.map(value=>'<td>'+esc(value)+'</td>').join('')+'</tr>';
+ const table=(headers,rows)=>'<div class="scroll"><table><thead><tr>'+headers.map(value=>'<th scope="col">'+esc(value)+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
+ const summary=table(
+  ['Mes','Ventas cobradas','Otros ingresos','Entradas','Devoluciones','Otros gastos','Salidas','Saldo neto de caja'],
+  months.map(m=>cells([m.mes,money(m.ventas),money(m.ingresos),money(m.entradas),money(m.devoluciones),money(m.egresos),money(m.salidas),money(m.neto)]))
+ );
+ const labels={ventas:'Ventas',ingresos:'Otros ingresos',devoluciones:'Devoluciones',egresos:'Otros egresos'};
+ const categories=new Map(),payments=new Map();
+ for(const m of moves){
+  const month=m.date.slice(0,7);
+  const category=m.type==='ventas'?(m.category==='local'?'Venta local':m.category==='web_whatsapp'?'Pedido web':m.category||'Sin categoría'):m.category||'Sin categoría';
+  const key=JSON.stringify([month,labels[m.type],category]);
+  categories.set(key,(categories.get(key)||0)+m.amount);
+  const paymentKey=JSON.stringify([month,m.payment||'Sin medio registrado']);
+  if(!payments.has(paymentKey))payments.set(paymentKey,{entrada:0,salida:0});
+  payments.get(paymentKey)[m.type==='ventas'||m.type==='ingresos'?'entrada':'salida']+=m.amount;
+ }
+ const sorted=map=>[...map.entries()].sort(([a],[b])=>a.localeCompare(b,'es'));
+ target.innerHTML='<h4>Estado mensual de caja</h4>'+summary+
+ '<h4>Detalle por categoría</h4>'+table(['Mes','Movimiento','Categoría','Total'],sorted(categories).map(([key,total])=>cells([...JSON.parse(key),money(total)])))+
+ '<h4>Detalle por medio de pago</h4>'+table(['Mes','Medio de pago','Entradas','Salidas','Saldo neto'],sorted(payments).map(([key,p])=>cells([...JSON.parse(key),money(p.entrada),money(p.salida),money(p.entrada-p.salida)])));
+}
 async function loadAccountingReport(action='view'){
  const status=document.getElementById('accountingStatus');
  const from=document.getElementById('accountingStart').value,to=document.getElementById('accountingEnd').value;
@@ -388,7 +412,7 @@ async function loadAccountingReport(action='view'){
  const buttons=document.querySelectorAll('#accountingReport button');
  buttons.forEach(button=>button.disabled=true);
  status.textContent='Consultando movimientos…';
- document.getElementById('accountingChart').replaceChildren();
+ document.getElementById('accountingChart').replaceChildren();document.getElementById('accountingBreakdown').replaceChildren();
  try{
   const [sales,income,expenses]=await Promise.all([
    accountingRows('sales','id,confirmed_at,total_cop,payment_method,source,delivery_fee_cop','confirmed_at',startDate+'T00:00:00-05:00',endDate+'T00:00:00-05:00',true),
@@ -410,12 +434,12 @@ async function loadAccountingReport(action='view'){
    if(month)month[movement.type]+=movement.amount;
   }
   const totals=[...months.values()];
-  for(const m of totals)m.neto=m.ventas+m.ingresos-m.egresos-m.devoluciones;
-  renderAccountingMonths(totals);
+  for(const m of totals){m.entradas=m.ventas+m.ingresos;m.salidas=m.egresos+m.devoluciones;m.neto=m.entradas-m.salidas;} renderAccountingBreakdown(totals,moves);
+  renderAccountingMonths(totals);document.getElementById('accountingChart').closest('details').open=action==='view';
   const suffix=from+'_'+to+'.csv';
   if(action==='monthly')accountingCsv('Porkys_Resumen_'+suffix,[
-   ['Mes','Ventas brutas COP','Otros ingresos COP','Otros egresos COP','Devoluciones COP','Saldo neto COP'],
-   ...totals.map(m=>[m.mes+'-01',m.ventas,m.ingresos,m.egresos,m.devoluciones,m.neto])
+   ['Mes','Ventas brutas COP','Otros ingresos COP','Total entradas COP','Devoluciones COP','Otros egresos COP','Total salidas COP','Saldo neto de caja COP'],
+   ...totals.map(m=>[m.mes+'-01',m.ventas,m.ingresos,m.entradas,m.devoluciones,m.egresos,m.salidas,m.neto])
   ]);
   const sign=type=>type==='egresos'||type==='devoluciones'?-1:1;
   if(action==='detail')accountingCsv('Porkys_Movimientos_'+suffix,[
